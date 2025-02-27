@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NJZ头像生成器-免抠图版</title>
+    <title>NJZ头像生成器-懒人版</title>
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <style>
         @font-face {
@@ -186,10 +186,13 @@
             const reader = new FileReader();
             reader.onload = function (e) {
                 // 重置位置和缩放
-                avatar.style.left = '0px';
-                avatar.style.top = '0px';
                 avatar.style.transform = 'scale(1)';
                 scale = 1.0;
+
+                // 设置头像初始位置为容器的中心
+                const containerRect = canvasContainer.getBoundingClientRect();
+                avatar.style.left = `${containerRect.width / 2 - avatar.offsetWidth / 2}px`;
+                avatar.style.top = `${containerRect.height / 2 - avatar.offsetHeight / 2}px`;
 
                 // 设置背景图
                 avatar.style.backgroundImage = `url(${e.target.result})`;
@@ -316,8 +319,8 @@
                     const scaleFactorX = 1200 / containerRect.width;
                     const scaleFactorY = 1200 / containerRect.height;
 
-                    const scaledLeft = (avatarRect.left - containerRect.left) * scaleFactorX;
-                    const scaledTop = (avatarRect.top - containerRect.top) * scaleFactorY;
+                    const scaledLeft = (avatarRect.left - containerRect.left + avatarRect.width / 2 - avatarImage.width * scale * scaleFactorX / 2) * scaleFactorX;
+                    const scaledTop = (avatarRect.top - containerRect.top + avatarRect.height / 2 - avatarImage.height * scale * scaleFactorY / 2) * scaleFactorY;
 
                     outputCtx.drawImage(
                         avatarImage, 
