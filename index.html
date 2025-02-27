@@ -1,320 +1,480 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NJZ头像生成器-懒人版</title>
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
-  <style>
-    @font-face {
-      font-family: 'yaheibold';
-      src: url('yaheibold.ttc') format('truetype');
-      font-weight: normal;
-      font-style: normal;
-    }
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&display=swap');
-    :root {
-      --primary-color: #6A5ACD;
-      --text-color: #333;
-      --bg-color: #F4F6FA;
-    }
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
-      background-color: var(--bg-color);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-      color: var(--text-color);
-    }
-    .container {
-      background-color: white;
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-      width: 100%;
-      max-width: 450px;
-      padding: 30px;
-    }
-    h1 {
-      text-align: center;
-      color: var(--primary-color);
-      margin-bottom: 20px;
-      font-size: 1.8rem;
-      font-family: 'yaheibold', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
-    }
-    .instructions {
-      background-color: rgba(106, 90, 205, 0.05);
-      border-left: 4px solid var(--primary-color);
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 4px;
-    }
-    .instructions ul {
-      list-style-type: none;
-      padding-left: 10px;
-    }
-    .instructions li {
-      margin-bottom: 8px;
-      position: relative;
-      padding-left: 20px;
-    }
-    .instructions li:before {
-      content: '•';
-      color: var(--primary-color);
-      position: absolute;
-      left: 0;
-    }
-    .upload-btn, #generate-btn {
-      display: block;
-      width: 60%;
-      margin: 0 auto 20px;
-      padding: 12px;
-      background-color: var(--primary-color);
-      color: white;
-      border: none;
-      border-radius: 50px;
-      text-align: center;
-      cursor: pointer;
-      transition: background-color 0.3s;
-      font-size: 1rem;
-    }
-    .upload-btn:hover, #generate-btn:hover {
-      background-color: #5A4ACD;
-    }
-    #canvas-container {
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      background-image: url('bg.jpeg');
-      background-size: cover;
-      background-position: center;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      position: relative;
-    }
-    #avatar {
-      position: absolute;
-      width: 50%;
-      height: 50%;
-      border-radius: 50%;
-      background-size: cover;
-      background-position: center;
-      cursor: grab;
-      touch-action: none;
-    }
-    #avatar:active {
-      cursor: grabbing;
-    }
-    #generate-btn:disabled {
-      cursor: not-allowed;
-      background-color: #cccccc;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>NJZ头像生成器-懒人版</h1>
-    
-    <div class="instructions">
-      <ul>
-        <li>请用浏览器打开</li>
-        <li>如已有透明底图片，推荐使用<a href="https://nobreadnolife.github.io/newavatar/" style="color: var(--primary-color);">常规版生成器</a></li>
-        <li>图片可拖拽/放大/缩小</li>
-        <li>点击"生成头像"查看保存</li>
-      </ul>
-    </div>
-    
-    <label for="upload" class="upload-btn">上传图片</label>
-    <input type="file" id="upload" accept="image/*" style="display:none;">
-    
-    <div id="canvas-container">
-      <div id="avatar"></div>
-    </div>
-    
-    <button id="generate-btn" disabled>生成头像</button>
-  </div>
-  
-  <script>
-    const uploadInput = document.getElementById('upload');
-    const avatar = document.getElementById('avatar');
-    const generateBtn = document.getElementById('generate-btn');
-    const canvasContainer = document.getElementById('canvas-container');
-    
-    let scale = 1.0;
-    let startX, startY, isDragging = false;
-    let originalImage = null;
-    
-    uploadInput.addEventListener('change', function () {
-      const file = this.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        // 重置位置和缩放
-        avatar.style.transform = 'scale(1)';
-        scale = 1.0;
-        // 设置头像初始位置为容器的中心
-        const containerRect = canvasContainer.getBoundingClientRect();
-        avatar.style.left = `${containerRect.width / 2 - avatar.offsetWidth / 2}px`;
-        avatar.style.top = `${containerRect.height / 2 - avatar.offsetHeight / 2}px`;
-        // 设置上传图片
-        avatar.style.backgroundImage = `url(${e.target.result})`;
-        originalImage = e.target.result;
-        // 启用生成按钮
-        generateBtn.disabled = false;
-      };
-      reader.readAsDataURL(file);
-    });
-    
-    // 鼠标拖拽
-    avatar.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      startX = e.clientX - avatar.offsetLeft;
-      startY = e.clientY - avatar.offsetTop;
-      avatar.style.cursor = 'grabbing';
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-      if (isDragging) {
-        avatar.style.left = `${e.clientX - startX}px`;
-        avatar.style.top = `${e.clientY - startY}px`;
-      }
-    });
-    
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-      avatar.style.cursor = 'grab';
-    });
-    
-    // 触摸拖拽
-    avatar.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        isDragging = true;
-        startX = touch.clientX - avatar.offsetLeft;
-        startY = touch.clientY - avatar.offsetTop;
-        avatar.style.cursor = 'grabbing';
-      }
-    });
-    
-    document.addEventListener('touchmove', (e) => {
-      if (isDragging && e.touches.length === 1) {
-        const touch = e.touches[0];
-        avatar.style.left = `${touch.clientX - startX}px`;
-        avatar.style.top = `${touch.clientY - startY}px`;
-      }
-    });
-    
-    document.addEventListener('touchend', () => {
-      isDragging = false;
-      avatar.style.cursor = 'grab';
-    });
-    
-    // 滚轮缩放
-    avatar.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const scaleFactor = e.deltaY < 0 ? 1.1 : 0.9;
-      scale *= scaleFactor;
-      scale = Math.max(0.5, Math.min(3, scale));
-      avatar.style.transform = `scale(${scale})`;
-    });
-    
-    // 触摸缩放
-    let lastTouchDistance = 0;
-    avatar.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
-        lastTouchDistance = Math.hypot(
-          e.touches[0].pageX - e.touches[1].pageX,
-          e.touches[0].pageY - e.touches[1].pageY
-        );
-      }
-    });
-    
-    avatar.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 2) {
-        const touchDistance = Math.hypot(
-          e.touches[0].pageX - e.touches[1].pageX,
-          e.touches[0].pageY - e.touches[1].pageY
-        );
-        const scaleFactor = touchDistance / lastTouchDistance;
-        scale *= scaleFactor;
-        scale = Math.max(0.5, Math.min(3, scale));
-        avatar.style.transform = `scale(${scale})`;
-        lastTouchDistance = touchDistance;
-      }
-    });
-    
-    // 生成头像：使用预览界面的计算后样式构建新页面
-    generateBtn.addEventListener('click', () => {
-      // 获取容器和头像的计算样式
-      const containerRect = canvasContainer.getBoundingClientRect();
-      const computedContainer = window.getComputedStyle(canvasContainer);
-      const computedAvatar = window.getComputedStyle(avatar);
-      
-      const avatarLeft = computedAvatar.left;
-      const avatarTop = computedAvatar.top;
-      const avatarWidth = computedAvatar.width;
-      const avatarHeight = computedAvatar.height;
-      const avatarTransform = computedAvatar.transform;
-      const avatarBg = computedAvatar.backgroundImage;
-      
-      const newWindow = window.open();
-      const htmlContent = `
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>保存头像</title>
-        <style>
-          body { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            margin: 0; 
-            background-color: #F4F6FA;
-          }
-          #canvas-container {
-            width: ${containerRect.width}px;
-            height: ${containerRect.height}px;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NJZ头像生成器-懒人版</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        @font-face {
+            font-family: 'yaheibold';
+            src: url('yaheibold.ttc') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&display=swap');
+        
+        :root {
+            --primary-color: #6A5ACD;
+            --text-color: #333;
+            --bg-color: #F4F6FA;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text-color);
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 450px;
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            font-family: 'yaheibold', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+        }
+
+        .instructions {
+            background-color: rgba(106, 90, 205, 0.05);
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .instructions ul {
+            list-style-type: none;
+            padding-left: 10px;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .instructions li:before {
+            content: '•';
+            color: var(--primary-color);
+            position: absolute;
+            left: 0;
+        }
+
+        .upload-btn, #generate-btn {
+            display: block;
+            width: 60%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 1rem;
+        }
+
+        .upload-btn:hover, #generate-btn:hover {
+            background-color: #5A4ACD;
+        }
+
+        #canvas-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
             background-image: url('bg.jpeg');
             background-size: cover;
             background-position: center;
-            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             overflow: hidden;
             border-radius: 12px;
-          }
-          #avatar {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        #avatar {
             position: absolute;
-            width: ${avatarWidth};
-            height: ${avatarHeight};
-            left: ${avatarLeft};
-            top: ${avatarTop};
-            transform: ${avatarTransform};
+            width: 50%;
+            height: 50%;
             border-radius: 50%;
             background-size: cover;
             background-position: center;
-            background-image: ${avatarBg};
-          }
-        </style>
-      </head>
-      <body>
-        <div id="canvas-container">
-          <div id="avatar"></div>
+            cursor: grab;
+            touch-action: none;
+        }
+
+        #avatar:active {
+            cursor: grabbing;
+        }
+
+        #generate-btn {
+            background-color: #888;
+        }
+
+        #generate-btn:disabled {
+            cursor: not-allowed;
+            background-color: #cccccc;
+        }
+    </style>
+    <!-- 不再需要html2canvas库 -->
+</head>
+<body>
+    <div class="container">
+        <h1>NJZ头像生成器-懒人版</h1>
+        
+        <div class="instructions">
+            <ul>
+                <li>请用浏览器打开</li>
+                <li>如已有透明底图片，推荐使用<a href="https://nobreadnolife.github.io/newavatar/" style="color: var(--primary-color);">常规版生成器</a></li>
+                <li>图片可拖拽/放大/缩小</li>
+                <li>点击"生成头像"查看保存</li>
+            </ul>
         </div>
-      </body>
-      </html>
-      `;
-      newWindow.document.write(htmlContent);
-      newWindow.document.close();
-    });
-  </script>
+        
+        <label for="upload" class="upload-btn">上传图片</label>
+        <input type="file" id="upload" accept="image/*" style="display:none;">
+
+        <div id="canvas-container">
+            <div id="avatar"></div>
+        </div>
+
+        <button id="generate-btn" disabled>生成头像</button>
+    </div>
+
+    <script>
+        // 主要变量定义
+        const uploadInput = document.getElementById('upload');
+        const avatar = document.getElementById('avatar');
+        const generateBtn = document.getElementById('generate-btn');
+        const canvasContainer = document.getElementById('canvas-container');
+
+        // 状态变量
+        let scale = 1.0;
+        let startX, startY, isDragging = false;
+        let originalImage = null;
+
+        // 上传图片处理
+        uploadInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // 重置位置和缩放
+                avatar.style.transform = 'scale(1)';
+                scale = 1.0;
+
+                // 设置头像初始位置为容器的中心
+                const containerRect = canvasContainer.getBoundingClientRect();
+                avatar.style.left = `${containerRect.width / 2 - avatar.offsetWidth / 2}px`;
+                avatar.style.top = `${containerRect.height / 2 - avatar.offsetHeight / 2}px`;
+
+                // 设置背景图
+                avatar.style.backgroundImage = `url(${e.target.result})`;
+                originalImage = e.target.result;
+
+                // 启用生成按钮
+                generateBtn.disabled = false;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 鼠标拖拽
+        avatar.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX - avatar.offsetLeft;
+            startY = e.clientY - avatar.offsetTop;
+            avatar.style.cursor = 'grabbing';
+            e.preventDefault(); // 防止选择文本
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                avatar.style.left = `${e.clientX - startX}px`;
+                avatar.style.top = `${e.clientY - startY}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            avatar.style.cursor = 'grab';
+        });
+
+        // 触摸拖拽
+        avatar.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                isDragging = true;
+                startX = touch.clientX - avatar.offsetLeft;
+                startY = touch.clientY - avatar.offsetTop;
+                e.preventDefault(); // 防止页面滚动
+            }
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+                const touch = e.touches[0];
+                avatar.style.left = `${touch.clientX - startX}px`;
+                avatar.style.top = `${touch.clientY - startY}px`;
+                e.preventDefault(); // 防止页面滚动
+            }
+        });
+
+        document.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+
+        // 滚轮缩放
+        avatar.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const scaleFactor = e.deltaY < 0 ? 1.1 : 0.9;
+            scale *= scaleFactor;
+            scale = Math.max(0.5, Math.min(3, scale));
+            avatar.style.transform = `scale(${scale})`;
+        });
+
+        // 触摸缩放
+        let lastTouchDistance = 0;
+
+        avatar.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                lastTouchDistance = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+            }
+        });
+
+        avatar.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                
+                const touchDistance = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+
+                const scaleFactor = touchDistance / lastTouchDistance;
+                scale *= scaleFactor;
+                scale = Math.max(0.5, Math.min(3, scale));
+                avatar.style.transform = `scale(${scale})`;
+
+                lastTouchDistance = touchDistance;
+            }
+        });
+
+        // 生成头像 - 使用原始的Canvas绘制方式，但更加准确
+        generateBtn.addEventListener('click', function() {
+            if (!originalImage) {
+                alert('请先上传图片');
+                return;
+            }
+
+            try {
+                // 显示加载提示
+                generateBtn.textContent = '处理中...';
+                generateBtn.disabled = true;
+                
+                // 创建高分辨率输出画布
+                const outputCanvas = document.createElement('canvas');
+                outputCanvas.width = 1200;
+                outputCanvas.height = 1200;
+                const outputCtx = outputCanvas.getContext('2d');
+                
+                // 获取预览容器和头像的位置和尺寸
+                const containerRect = canvasContainer.getBoundingClientRect();
+                const avatarRect = avatar.getBoundingClientRect();
+                
+                // 计算头像相对于容器的位置
+                const relativeLeft = avatarRect.left - containerRect.left;
+                const relativeTop = avatarRect.top - containerRect.top;
+                
+                // 计算比例因子
+                const scaleFactor = 1200 / containerRect.width;
+                
+                // 首先加载背景图
+                const bgImage = new Image();
+                bgImage.crossOrigin = 'anonymous';
+                bgImage.onload = function() {
+                    // 绘制背景
+                    outputCtx.drawImage(bgImage, 0, 0, outputCanvas.width, outputCanvas.height);
+                    
+                    // 加载头像图片
+                    const avatarImage = new Image();
+                    avatarImage.crossOrigin = 'anonymous';
+                    avatarImage.onload = function() {
+                        // 保存画布状态
+                        outputCtx.save();
+                        
+                        // 计算头像在画布上的位置和尺寸
+                        const scaledLeft = relativeLeft * scaleFactor;
+                        const scaledTop = relativeTop * scaleFactor;
+                        const scaledWidth = avatarRect.width * scaleFactor;
+                        const scaledHeight = avatarRect.height * scaleFactor;
+                        
+                        // 创建圆形裁剪路径
+                        outputCtx.beginPath();
+                        const centerX = scaledLeft + scaledWidth / 2;
+                        const centerY = scaledTop + scaledHeight / 2;
+                        const radius = Math.min(scaledWidth, scaledHeight) / 2;
+                        outputCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                        outputCtx.closePath();
+                        outputCtx.clip();
+                        
+                        // 计算图像在画布上的实际大小
+                        // 获取原始图像的宽高比
+                        const imgRatio = avatarImage.width / avatarImage.height;
+                        
+                        // 创建一个临时画布，用于预处理图像
+                        const tempCanvas = document.createElement('canvas');
+                        const tempCtx = tempCanvas.getContext('2d');
+                        
+                        // 使用background-size: cover的逻辑来计算
+                        let sourceWidth, sourceHeight, sourceX, sourceY;
+                        
+                        // 设置临时画布大小为头像元素大小
+                        tempCanvas.width = avatarRect.width;
+                        tempCanvas.height = avatarRect.height;
+                        
+                        // 计算如何在临时画布上绘制图像以实现cover效果
+                        if (imgRatio > 1) { // 横向图片
+                            sourceHeight = avatarImage.height;
+                            sourceWidth = sourceHeight * (avatarRect.width / avatarRect.height);
+                            sourceX = (avatarImage.width - sourceWidth) / 2;
+                            sourceY = 0;
+                        } else { // 纵向图片
+                            sourceWidth = avatarImage.width;
+                            sourceHeight = sourceWidth * (avatarRect.height / avatarRect.width);
+                            sourceX = 0;
+                            sourceY = (avatarImage.height - sourceHeight) / 2;
+                        }
+                        
+                        // 在临时画布上绘制并应用缩放
+                        tempCtx.drawImage(
+                            avatarImage,
+                            sourceX, sourceY, sourceWidth, sourceHeight,
+                            0, 0, tempCanvas.width, tempCanvas.height
+                        );
+                        
+                        // 将缩放的图像绘制到输出画布
+                        outputCtx.drawImage(
+                            tempCanvas,
+                            0, 0, tempCanvas.width, tempCanvas.height,
+                            scaledLeft, scaledTop, scaledWidth, scaledHeight
+                        );
+                        
+                        // 恢复画布状态
+                        outputCtx.restore();
+                        
+                        // 生成并打开新窗口
+                        const dataUrl = outputCanvas.toDataURL('image/png');
+                        const newWindow = window.open();
+                        if (newWindow) {
+                            newWindow.document.write(`
+                                <html>
+                                <head>
+                                    <title>生成的头像</title>
+                                    <style>
+                                        body { 
+                                            display: flex; 
+                                            justify-content: center; 
+                                            align-items: center; 
+                                            height: 100vh; 
+                                            margin: 0; 
+                                            background: #F4F6FA;
+                                        }
+                                        img { 
+                                            max-width: 90%; 
+                                            max-height: 90vh; 
+                                        }
+                                        p {
+                                            text-align: center;
+                                            color: #666;
+                                            font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+                                            margin-top: 20px;
+                                        }
+                                        .container {
+                                            display: flex;
+                                            flex-direction: column;
+                                            align-items: center;
+                                        }
+                                    </style>
+                                </head>
+                                <body>
+                                    <div class="container">
+                                        <img src="${dataUrl}" alt="生成的头像">
+                                        <p>右键点击图片选择"图片另存为"即可保存</p>
+                                    </div>
+                                </body>
+                                </html>
+                            `);
+                            newWindow.document.close();
+                        } else {
+                            alert('无法打开新窗口。请检查您的浏览器是否阻止了弹出窗口。');
+                        }
+                        
+                        // 重置按钮状态
+                        generateBtn.textContent = '生成头像';
+                        generateBtn.disabled = false;
+                    };
+                    
+                    // 设置图片源
+                    avatarImage.src = originalImage;
+                    
+                    // 错误处理
+                    avatarImage.onerror = function(error) {
+                        console.error('头像图片加载失败:', error);
+                        alert('头像图片加载失败，请重试。');
+                        generateBtn.textContent = '生成头像';
+                        generateBtn.disabled = false;
+                    };
+                };
+                
+                // 设置背景图源
+                bgImage.src = 'bg.jpeg';
+                
+                // 错误处理
+                bgImage.onerror = function(error) {
+                    console.error('背景图片加载失败:', error);
+                    alert('背景图片加载失败，请确保bg.jpeg文件存在。');
+                    generateBtn.textContent = '生成头像';
+                    generateBtn.disabled = false;
+                };
+            } catch (error) {
+                console.error('生成头像时出错:', error);
+                alert('生成头像时出错: ' + error.message);
+                
+                // 重置按钮状态
+                generateBtn.textContent = '生成头像';
+                generateBtn.disabled = false;
+            }
+        });
+    </script>
 </body>
 </html>
