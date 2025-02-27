@@ -171,6 +171,9 @@
     const outputCtx = outputCanvas.getContext('2d');
     const canvasContainer = document.getElementById('canvas-container');
     
+    // 全局图片对象
+    let imageObj = null;
+    
     // 用于记录缩放比例，初始为 1
     let scale = 1.0;
     let isDragging = false;
@@ -194,13 +197,18 @@
       
       const reader = new FileReader();
       reader.onload = function (e) {
-        scale = 1.0;
-        avatar.style.transform = 'scale(1)';
-        centerAvatar();
-        
-        avatar.style.backgroundImage = `url(${e.target.result})`;
-        originalImage = e.target.result;
-        generateBtn.disabled = false;
+        // 创建全局图片对象
+        imageObj = new Image();
+        imageObj.onload = function() {
+          scale = 1.0;
+          avatar.style.transform = 'scale(1)';
+          centerAvatar();
+          
+          avatar.style.backgroundImage = `url(${e.target.result})`;
+          originalImage = e.target.result;
+          generateBtn.disabled = false;
+        };
+        imageObj.src = e.target.result;
       };
       reader.readAsDataURL(file);
     });
@@ -299,10 +307,8 @@
         outputCtx.arc(600, 600, 600, 0, Math.PI * 2);
         outputCtx.clip();
         
-        // 创建头像图片
-        const avatarImage = new Image();
-        avatarImage.src = originalImage;
-        avatarImage.onload = () => {
+        // 重用全局 imageObj
+        if (imageObj) {
           const containerRect = canvasContainer.getBoundingClientRect();
           // 基础头像尺寸（容器宽度的50%）
           const baseSize = containerRect.width * 0.5;
@@ -328,37 +334,37 @@
           const drawX = outputCenterX - outputSize / 2;
           const drawY = outputCenterY - outputSize / 2;
           
-          outputCtx.drawImage(avatarImage, drawX, drawY, outputSize, outputSize);
-          outputCtx.restore();
-          
-          const dataUrl = outputCanvas.toDataURL('image/png');
-          const newWindow = window.open();
-          newWindow.document.write(`
-            <html>
-            <head>
-              <style>
-                body { 
-                  display: flex; 
-                  justify-content: center; 
-                  align-items: center; 
-                  height: 100vh; 
-                  margin: 0; 
-                  background: #F4F6FA;
-                }
-                img { 
-                  max-width: 90%; 
-                  max-height: 90vh; 
-                  border-radius: 50%; 
-                }
-              </style>
-            </head>
-            <body>
-              <img src="${dataUrl}" alt="生成的头像">
-            </body>
-            </html>
-          `);
-          newWindow.document.close();
-        };
+          outputCtx.drawImage(imageObj, drawX, drawY, outputSize, outputSize);
+        }
+        outputCtx.restore();
+        
+        const dataUrl = outputCanvas.toDataURL('image/png');
+        const newWindow = window.open();
+        newWindow.document.write(`
+          <html>
+          <head>
+            <style>
+              body { 
+                display: flex; 
+                justify-content: center; 
+                align-items: center; 
+                height: 100vh; 
+                margin: 0; 
+                background: #F4F6FA;
+              }
+              img { 
+                max-width: 90%; 
+                max-height: 90vh; 
+                border-radius: 50%; 
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${dataUrl}" alt="生成的头像">
+          </body>
+          </html>
+        `);
+        newWindow.document.close();
       };
     });
   </script>
