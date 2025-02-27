@@ -178,8 +178,6 @@
         let scale = 1.0;
         let startX, startY, isDragging = false;
         let originalImage = null;
-        let avatarLeft = 0;
-        let avatarTop = 0;
 
         uploadInput.addEventListener('change', function () {
             const file = this.files[0];
@@ -193,13 +191,10 @@
 
                 // 设置头像初始位置为容器的中心
                 const containerRect = canvasContainer.getBoundingClientRect();
-                avatarLeft = containerRect.width / 2 - avatar.offsetWidth / 2;
-                avatarTop = containerRect.height / 2 - avatar.offsetHeight / 2;
-                
-                avatar.style.left = `${avatarLeft}px`;
-                avatar.style.top = `${avatarTop}px`;
+                avatar.style.left = `${containerRect.width / 2 - avatar.offsetWidth / 2}px`;
+                avatar.style.top = `${containerRect.height / 2 - avatar.offsetHeight / 2}px`;
 
-                // 设置背景图
+                // 设置上传图片
                 avatar.style.backgroundImage = `url(${e.target.result})`;
                 originalImage = e.target.result;
 
@@ -219,10 +214,8 @@
 
         document.addEventListener('mousemove', (e) => {
             if (isDragging) {
-                avatarLeft = e.clientX - startX;
-                avatarTop = e.clientY - startY;
-                avatar.style.left = `${avatarLeft}px`;
-                avatar.style.top = `${avatarTop}px`;
+                avatar.style.left = `${e.clientX - startX}px`;
+                avatar.style.top = `${e.clientY - startY}px`;
             }
         });
 
@@ -245,10 +238,8 @@
         document.addEventListener('touchmove', (e) => {
             if (isDragging && e.touches.length === 1) {
                 const touch = e.touches[0];
-                avatarLeft = touch.clientX - startX;
-                avatarTop = touch.clientY - startY;
-                avatar.style.left = `${avatarLeft}px`;
-                avatar.style.top = `${avatarTop}px`;
+                avatar.style.left = `${touch.clientX - startX}px`;
+                avatar.style.top = `${touch.clientY - startY}px`;
             }
         });
 
@@ -304,91 +295,45 @@
             outputCanvas.width = 1200;
             outputCanvas.height = 1200;
 
-            // 创建一个临时画布用于绘制用户的头像
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = 1200;
-            tempCanvas.height = 1200;
-            const tempCtx = tempCanvas.getContext('2d');
-
             // 创建背景图
             const bgImage = new Image();
-            bgImage.crossOrigin = 'Anonymous';
             bgImage.src = 'bg.jpeg';
-            
             bgImage.onload = () => {
-                // 绘制背景到输出画布
+                // 绘制背景
                 outputCtx.drawImage(bgImage, 0, 0, 1200, 1200);
-                
-                // 创建用户头像图片
+
+                // 创建圆形裁剪区域
+                outputCtx.save();
+                outputCtx.beginPath();
+                outputCtx.arc(600, 600, 600, 0, Math.PI * 2);
+                outputCtx.clip();
+
+                // 创建头像图片
                 const avatarImage = new Image();
-                avatarImage.crossOrigin = 'Anonymous';
                 avatarImage.src = originalImage;
-                
                 avatarImage.onload = () => {
-                    // 获取容器和头像的尺寸信息
+                    // 计算缩放因子以及上传图片在容器中的位置
                     const containerRect = canvasContainer.getBoundingClientRect();
-                    
-                    // 计算缩放和位置比例
-                    const containerToCanvasRatio = 1200 / containerRect.width;
-                    
-                    // 计算临时画布中头像位置和尺寸
-                    const avatarWidth = avatar.offsetWidth * scale * containerToCanvasRatio;
-                    const avatarHeight = avatar.offsetHeight * scale * containerToCanvasRatio;
-                    
-                    // 计算头像在临时画布上的位置（考虑缩放和居中）
-                    const avatarCanvasX = avatarLeft * containerToCanvasRatio;
-                    const avatarCanvasY = avatarTop * containerToCanvasRatio;
-                    
-                    // 在临时画布上绘制完整的用户头像
-                    tempCtx.save();
-                    
-                    // 计算裁剪圆的中心点
-                    const centerX = avatarCanvasX + (avatarWidth / 2);
-                    const centerY = avatarCanvasY + (avatarHeight / 2);
-                    const radius = Math.min(avatarWidth, avatarHeight) / 2;
-                    
-                    // 创建圆形裁剪区域
-                    outputCtx.save();
-                    outputCtx.beginPath();
-                    outputCtx.arc(600, 600, 600, 0, Math.PI * 2);
-                    outputCtx.closePath();
-                    outputCtx.clip();
-                    
-                    // 计算头像绘制的参数
-                    // 源图像宽高比
-                    const imgRatio = avatarImage.width / avatarImage.height;
-                    // avatar元素宽高比
-                    const avatarRatio = avatar.offsetWidth / avatar.offsetHeight;
-                    
-                    // 计算实际绘制到画布上的尺寸和位置
-                    let drawWidth, drawHeight, drawX, drawY;
-                    
-                    if (imgRatio > avatarRatio) {
-                        // 图像更宽，以高度为基准
-                        drawHeight = avatar.offsetHeight * containerToCanvasRatio * scale;
-                        drawWidth = drawHeight * imgRatio;
-                    } else {
-                        // 图像更高，以宽度为基准
-                        drawWidth = avatar.offsetWidth * containerToCanvasRatio * scale;
-                        drawHeight = drawWidth / imgRatio;
-                    }
-                    
-                    // 计算绘制位置，使图像居中
-                    drawX = avatarCanvasX - (drawWidth - (avatar.offsetWidth * containerToCanvasRatio)) / 2;
-                    drawY = avatarCanvasY - (drawHeight - (avatar.offsetHeight * containerToCanvasRatio)) / 2;
-                    
-                    // 绘制头像到输出画布
+                    const avatarRect = avatar.getBoundingClientRect();
+
+                    const scaleFactorX = 1200 / containerRect.width;
+                    const scaleFactorY = 1200 / containerRect.height;
+
+                    // 修改后的计算公式，避免重复乘以缩放因子
+                    const scaledLeft = (avatarRect.left - containerRect.left + avatarRect.width / 2 - avatarImage.width * scale / 2) * scaleFactorX;
+                    const scaledTop = (avatarRect.top - containerRect.top + avatarRect.height / 2 - avatarImage.height * scale / 2) * scaleFactorY;
+
                     outputCtx.drawImage(
-                        avatarImage,
-                        drawX,
-                        drawY,
-                        drawWidth,
-                        drawHeight
+                        avatarImage, 
+                        scaledLeft, 
+                        scaledTop, 
+                        avatarImage.width * scale * scaleFactorX, 
+                        avatarImage.height * scale * scaleFactorY
                     );
-                    
+
                     outputCtx.restore();
-                    
-                    // 生成并打开新窗口
+
+                    // 生成并打开新窗口显示生成的头像
                     const dataUrl = outputCanvas.toDataURL('image/png');
                     const newWindow = window.open();
                     newWindow.document.write(`
