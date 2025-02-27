@@ -141,6 +141,8 @@
             background-color: #cccccc;
         }
     </style>
+    <!-- 添加html2canvas库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -165,15 +167,11 @@
         <button id="generate-btn" disabled>生成头像</button>
     </div>
 
-    <canvas id="output-canvas" style="display:none;"></canvas>
-
     <script>
         // 主要变量定义
         const uploadInput = document.getElementById('upload');
         const avatar = document.getElementById('avatar');
         const generateBtn = document.getElementById('generate-btn');
-        const outputCanvas = document.getElementById('output-canvas');
-        const outputCtx = outputCanvas.getContext('2d');
         const canvasContainer = document.getElementById('canvas-container');
 
         // 状态变量
@@ -292,7 +290,7 @@
             }
         });
 
-        // 生成头像
+        // 生成头像 - 使用html2canvas直接截取预览画面
         generateBtn.addEventListener('click', function() {
             if (!originalImage) {
                 alert('请先上传图片');
@@ -300,149 +298,97 @@
             }
 
             try {
-                                        // 设置输出画布大小
-                outputCanvas.width = 1200;
-                outputCanvas.height = 1200;
-
-                // 计算avatar元素的实际位置和大小
-                const avatarRect = avatar.getBoundingClientRect();
-                const containerRect = canvasContainer.getBoundingClientRect();
+                // 显示加载提示
+                generateBtn.textContent = '处理中...';
+                generateBtn.disabled = true;
                 
-                // 确保所有状态保存在这里
-                const avatarPosition = {
-                    left: avatarRect.left - containerRect.left,
-                    top: avatarRect.top - containerRect.top,
-                    width: avatarRect.width / scale, // 去除缩放因子，获取原始尺寸
-                    height: avatarRect.height / scale, // 去除缩放因子，获取原始尺寸
-                    scale: scale
-                };
-
-                // 存储容器信息
-                const containerInfo = {
-                    width: containerRect.width,
-                    height: containerRect.height
-                };
-                
-                console.log("Avatar position:", avatarPosition);
-                console.log("Container info:", containerInfo);
-
-                // 加载背景图
-                const bgImage = new Image();
-                bgImage.onload = function() {
-                    // 绘制背景
-                    outputCtx.drawImage(bgImage, 0, 0, outputCanvas.width, outputCanvas.height);
+                // 使用html2canvas直接截取预览容器
+                html2canvas(canvasContainer, {
+                    // 设置高分辨率截图
+                    scale: 3,  // 提高输出质量
+                    allowTaint: true,
+                    useCORS: true,
+                    // 只截取可见区域
+                    ignoreElements: (element) => {
+                        return !element.contains(avatar) && element !== canvasContainer && !canvasContainer.contains(element);
+                    }
+                }).then(canvas => {
+                    // 创建一个新的画布，用于生成圆形头像
+                    const finalCanvas = document.createElement('canvas');
+                    const size = Math.min(canvas.width, canvas.height);
+                    finalCanvas.width = size;
+                    finalCanvas.height = size;
                     
-                    // 加载用户上传的图片
-                    const userImage = new Image();
-                    userImage.onload = function() {
-                        // 保存画布状态以便后续恢复
-                        outputCtx.save();
-                        
-                        // 计算缩放比例
-                        const ratio = outputCanvas.width / containerInfo.width;
-                        
-                        // 计算圆形裁剪区域
-                        const centerX = (avatarPosition.left + avatarPosition.width / 2) * ratio;
-                        const centerY = (avatarPosition.top + avatarPosition.height / 2) * ratio;
-                        const radius = (avatarPosition.width / 2) * ratio;
-                        
-                        // 创建圆形裁剪区域
-                        outputCtx.beginPath();
-                        outputCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                        outputCtx.closePath();
-                        outputCtx.clip();
-                        
-                        // 计算用户图片绘制参数
-                        const aspectRatio = userImage.width / userImage.height;
-                        
-                        // 获取avatar元素的计算样式，以获取背景图片的大小
-                        const avatarStyle = window.getComputedStyle(avatar);
-                        const backgroundSize = avatarStyle.backgroundSize;
-                        
-                        // 确定在预览区域的头像显示尺寸
-                        let displayedImageWidth, displayedImageHeight;
-                        
-                        // 基于avatar容器的大小和背景适配方式计算
-                        if (aspectRatio >= 1) {
-                            // 横向图片 - 高度会填满，宽度会溢出
-                            displayedImageHeight = avatarPosition.height;
-                            displayedImageWidth = displayedImageHeight * aspectRatio;
-                        } else {
-                            // 纵向图片 - 宽度会填满，高度会溢出
-                            displayedImageWidth = avatarPosition.width;
-                            displayedImageHeight = displayedImageWidth / aspectRatio;
-                        }
-                        
-                        // 应用用户缩放
-                        const scaledWidth = displayedImageWidth * avatarPosition.scale * ratio;
-                        const scaledHeight = displayedImageHeight * avatarPosition.scale * ratio;
-                        
-                        // 计算图片的中心应该在裁剪圆的中心
-                        const drawX = centerX - scaledWidth / 2;
-                        const drawY = centerY - scaledHeight / 2;
-                        
-                        // 绘制图片
-                        outputCtx.drawImage(
-                            userImage,
-                            drawX,
-                            drawY,
-                            scaledWidth,
-                            scaledHeight
-                        );
-                        
-                        // 恢复画布状态
-                        outputCtx.restore();
-                        
-                        // 生成并打开新窗口
-                        const dataUrl = outputCanvas.toDataURL('image/png');
-                        const newWindow = window.open();
-                        if (newWindow) {
-                            newWindow.document.write(`
-                                <html>
-                                <head>
-                                    <title>生成的头像</title>
-                                    <style>
-                                        body { 
-                                            display: flex; 
-                                            justify-content: center; 
-                                            align-items: center; 
-                                            height: 100vh; 
-                                            margin: 0; 
-                                            background: #F4F6FA;
-                                        }
-                                        img { 
-                                            max-width: 90%; 
-                                            max-height: 90vh; 
-                                        }
-                                    </style>
-                                </head>
-                                <body>
+                    const ctx = finalCanvas.getContext('2d');
+                    
+                    // 将html2canvas生成的截图绘制到最终画布
+                    ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, size, size);
+                    
+                    // 生成并打开新窗口
+                    const dataUrl = finalCanvas.toDataURL('image/png');
+                    const newWindow = window.open();
+                    if (newWindow) {
+                        newWindow.document.write(`
+                            <html>
+                            <head>
+                                <title>生成的头像</title>
+                                <style>
+                                    body { 
+                                        display: flex; 
+                                        justify-content: center; 
+                                        align-items: center; 
+                                        height: 100vh; 
+                                        margin: 0; 
+                                        background: #F4F6FA;
+                                    }
+                                    img { 
+                                        max-width: 90%; 
+                                        max-height: 90vh; 
+                                    }
+                                    p {
+                                        text-align: center;
+                                        color: #666;
+                                        font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+                                        margin-top: 20px;
+                                    }
+                                    .container {
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                    }
+                                </style>
+                            </head>
+                            <body>
+                                <div class="container">
                                     <img src="${dataUrl}" alt="生成的头像">
-                                </body>
-                                </html>
-                            `);
-                            newWindow.document.close();
-                        } else {
-                            alert('无法打开新窗口。请检查您的浏览器是否阻止了弹出窗口。');
-                        }
-                    };
+                                    <p>右键点击图片选择"图片另存为"即可保存</p>
+                                </div>
+                            </body>
+                            </html>
+                        `);
+                        newWindow.document.close();
+                    } else {
+                        alert('无法打开新窗口。请检查您的浏览器是否阻止了弹出窗口。');
+                    }
                     
-                    // 设置图片源并处理加载错误
-                    userImage.onerror = function() {
-                        alert('加载用户图片失败');
-                    };
-                    userImage.src = originalImage;
-                };
-                
-                // 设置背景图源并处理加载错误
-                bgImage.onerror = function() {
-                    alert('加载背景图片失败');
-                };
-                bgImage.src = 'bg.jpeg';
-                
+                    // 重置按钮状态
+                    generateBtn.textContent = '生成头像';
+                    generateBtn.disabled = false;
+                }).catch(error => {
+                    console.error('截图失败:', error);
+                    alert('生成头像失败: ' + error.message);
+                    
+                    // 重置按钮状态
+                    generateBtn.textContent = '生成头像';
+                    generateBtn.disabled = false;
+                });
             } catch (error) {
                 console.error('生成头像时出错:', error);
                 alert('生成头像时出错: ' + error.message);
+                
+                // 重置按钮状态
+                generateBtn.textContent = '生成头像';
+                generateBtn.disabled = false;
             }
         });
     </script>
