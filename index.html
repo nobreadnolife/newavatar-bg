@@ -168,6 +168,7 @@
     <canvas id="output-canvas" style="display:none;"></canvas>
 
     <script>
+        // 主要变量定义
         const uploadInput = document.getElementById('upload');
         const avatar = document.getElementById('avatar');
         const generateBtn = document.getElementById('generate-btn');
@@ -175,16 +176,18 @@
         const outputCtx = outputCanvas.getContext('2d');
         const canvasContainer = document.getElementById('canvas-container');
 
+        // 状态变量
         let scale = 1.0;
         let startX, startY, isDragging = false;
         let originalImage = null;
 
-        uploadInput.addEventListener('change', function () {
+        // 上传图片处理
+        uploadInput.addEventListener('change', function() {
             const file = this.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function (e) {
+            reader.onload = function(e) {
                 // 重置位置和缩放
                 avatar.style.transform = 'scale(1)';
                 scale = 1.0;
@@ -194,7 +197,7 @@
                 avatar.style.left = `${containerRect.width / 2 - avatar.offsetWidth / 2}px`;
                 avatar.style.top = `${containerRect.height / 2 - avatar.offsetHeight / 2}px`;
 
-                // 设置上传图片
+                // 设置背景图
                 avatar.style.backgroundImage = `url(${e.target.result})`;
                 originalImage = e.target.result;
 
@@ -210,6 +213,7 @@
             startX = e.clientX - avatar.offsetLeft;
             startY = e.clientY - avatar.offsetTop;
             avatar.style.cursor = 'grabbing';
+            e.preventDefault(); // 防止选择文本
         });
 
         document.addEventListener('mousemove', (e) => {
@@ -231,7 +235,7 @@
                 isDragging = true;
                 startX = touch.clientX - avatar.offsetLeft;
                 startY = touch.clientY - avatar.offsetTop;
-                avatar.style.cursor = 'grabbing';
+                e.preventDefault(); // 防止页面滚动
             }
         });
 
@@ -240,12 +244,12 @@
                 const touch = e.touches[0];
                 avatar.style.left = `${touch.clientX - startX}px`;
                 avatar.style.top = `${touch.clientY - startY}px`;
+                e.preventDefault(); // 防止页面滚动
             }
         });
 
         document.addEventListener('touchend', () => {
             isDragging = false;
-            avatar.style.cursor = 'grab';
         });
 
         // 滚轮缩放
@@ -259,8 +263,10 @@
 
         // 触摸缩放
         let lastTouchDistance = 0;
+
         avatar.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
+                e.preventDefault();
                 lastTouchDistance = Math.hypot(
                     e.touches[0].pageX - e.touches[1].pageX,
                     e.touches[0].pageY - e.touches[1].pageY
@@ -270,6 +276,8 @@
 
         avatar.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
+                e.preventDefault();
+                
                 const touchDistance = Math.hypot(
                     e.touches[0].pageX - e.touches[1].pageX,
                     e.touches[0].pageY - e.touches[1].pageY
@@ -285,84 +293,144 @@
         });
 
         // 生成头像
-        generateBtn.addEventListener('click', () => {
+        generateBtn.addEventListener('click', function() {
             if (!originalImage) {
                 alert('请先上传图片');
                 return;
             }
 
-            // 创建高分辨率输出画布
-            outputCanvas.width = 1200;
-            outputCanvas.height = 1200;
+            try {
+                // 设置输出画布大小
+                outputCanvas.width = 1200;
+                outputCanvas.height = 1200;
 
-            // 创建背景图
-            const bgImage = new Image();
-            bgImage.src = 'bg.jpeg';
-            bgImage.onload = () => {
-                // 绘制背景
-                outputCtx.drawImage(bgImage, 0, 0, 1200, 1200);
-
-                // 创建圆形裁剪区域
-                outputCtx.save();
-                outputCtx.beginPath();
-                outputCtx.arc(600, 600, 600, 0, Math.PI * 2);
-                outputCtx.clip();
-
-                // 创建头像图片
-                const avatarImage = new Image();
-                avatarImage.src = originalImage;
-                avatarImage.onload = () => {
-                    // 计算缩放因子以及上传图片在容器中的位置
-                    const containerRect = canvasContainer.getBoundingClientRect();
-                    const avatarRect = avatar.getBoundingClientRect();
-
-                    const scaleFactorX = 1200 / containerRect.width;
-                    const scaleFactorY = 1200 / containerRect.height;
-
-                    // 修改后的计算公式，避免重复乘以缩放因子
-                    const scaledLeft = (avatarRect.left - containerRect.left + avatarRect.width / 2 - avatarImage.width * scale / 2) * scaleFactorX;
-                    const scaledTop = (avatarRect.top - containerRect.top + avatarRect.height / 2 - avatarImage.height * scale / 2) * scaleFactorY;
-
-                    outputCtx.drawImage(
-                        avatarImage, 
-                        scaledLeft, 
-                        scaledTop, 
-                        avatarImage.width * scale * scaleFactorX, 
-                        avatarImage.height * scale * scaleFactorY
-                    );
-
-                    outputCtx.restore();
-
-                    // 生成并打开新窗口显示生成的头像
-                    const dataUrl = outputCanvas.toDataURL('image/png');
-                    const newWindow = window.open();
-                    newWindow.document.write(`
-                        <html>
-                        <head>
-                            <style>
-                                body { 
-                                    display: flex; 
-                                    justify-content: center; 
-                                    align-items: center; 
-                                    height: 100vh; 
-                                    margin: 0; 
-                                    background: #F4F6FA;
-                                }
-                                img { 
-                                    max-width: 90%; 
-                                    max-height: 90vh; 
-                                    border-radius: 50%; 
-                                }
-                            </style>
-                        </head>
-                        <body>
-                            <img src="${dataUrl}" alt="生成的头像">
-                        </body>
-                        </html>
-                    `);
-                    newWindow.document.close();
+                // 确保所有状态保存在这里
+                const avatarPosition = {
+                    left: avatar.offsetLeft,
+                    top: avatar.offsetTop,
+                    width: avatar.offsetWidth,
+                    height: avatar.offsetHeight,
+                    scale: scale
                 };
-            };
+
+                // 存储容器信息
+                const containerInfo = {
+                    width: canvasContainer.offsetWidth,
+                    height: canvasContainer.offsetHeight
+                };
+
+                // 加载背景图
+                const bgImage = new Image();
+                bgImage.onload = function() {
+                    // 绘制背景
+                    outputCtx.drawImage(bgImage, 0, 0, outputCanvas.width, outputCanvas.height);
+                    
+                    // 加载用户上传的图片
+                    const userImage = new Image();
+                    userImage.onload = function() {
+                        // 保存画布状态以便后续恢复
+                        outputCtx.save();
+                        
+                        // 计算缩放比例
+                        const ratio = outputCanvas.width / containerInfo.width;
+                        
+                        // 计算圆形裁剪区域
+                        const centerX = (avatarPosition.left + avatarPosition.width / 2) * ratio;
+                        const centerY = (avatarPosition.top + avatarPosition.height / 2) * ratio;
+                        const radius = (avatarPosition.width / 2) * ratio;
+                        
+                        // 创建圆形裁剪区域
+                        outputCtx.beginPath();
+                        outputCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                        outputCtx.closePath();
+                        outputCtx.clip();
+                        
+                        // 计算用户图片绘制参数
+                        const aspectRatio = userImage.width / userImage.height;
+                        
+                        // 处理不同宽高比的图片
+                        let sourceWidth, sourceHeight;
+                        if (aspectRatio >= 1) {
+                            // 图片较宽
+                            sourceHeight = userImage.height;
+                            sourceWidth = sourceHeight * aspectRatio;
+                        } else {
+                            // 图片较高
+                            sourceWidth = userImage.width;
+                            sourceHeight = sourceWidth / aspectRatio;
+                        }
+                        
+                        // 计算图片在画布上的位置和尺寸
+                        const scaledWidth = sourceWidth * avatarPosition.scale * ratio;
+                        const scaledHeight = sourceHeight * avatarPosition.scale * ratio;
+                        
+                        // 计算图片的中心应该在裁剪圆的中心
+                        const drawX = centerX - scaledWidth / 2;
+                        const drawY = centerY - scaledHeight / 2;
+                        
+                        // 绘制图片
+                        outputCtx.drawImage(
+                            userImage,
+                            drawX,
+                            drawY,
+                            scaledWidth,
+                            scaledHeight
+                        );
+                        
+                        // 恢复画布状态
+                        outputCtx.restore();
+                        
+                        // 生成并打开新窗口
+                        const dataUrl = outputCanvas.toDataURL('image/png');
+                        const newWindow = window.open();
+                        if (newWindow) {
+                            newWindow.document.write(`
+                                <html>
+                                <head>
+                                    <title>生成的头像</title>
+                                    <style>
+                                        body { 
+                                            display: flex; 
+                                            justify-content: center; 
+                                            align-items: center; 
+                                            height: 100vh; 
+                                            margin: 0; 
+                                            background: #F4F6FA;
+                                        }
+                                        img { 
+                                            max-width: 90%; 
+                                            max-height: 90vh; 
+                                        }
+                                    </style>
+                                </head>
+                                <body>
+                                    <img src="${dataUrl}" alt="生成的头像">
+                                </body>
+                                </html>
+                            `);
+                            newWindow.document.close();
+                        } else {
+                            alert('无法打开新窗口。请检查您的浏览器是否阻止了弹出窗口。');
+                        }
+                    };
+                    
+                    // 设置图片源并处理加载错误
+                    userImage.onerror = function() {
+                        alert('加载用户图片失败');
+                    };
+                    userImage.src = originalImage;
+                };
+                
+                // 设置背景图源并处理加载错误
+                bgImage.onerror = function() {
+                    alert('加载背景图片失败');
+                };
+                bgImage.src = 'bg.jpeg';
+                
+            } catch (error) {
+                console.error('生成头像时出错:', error);
+                alert('生成头像时出错: ' + error.message);
+            }
         });
     </script>
 </body>
