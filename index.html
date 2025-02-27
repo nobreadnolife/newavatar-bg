@@ -454,6 +454,8 @@
                                             max-width: 100%;
                                             border-radius: 12px;
                                             margin-bottom: 20px;
+                                            -webkit-user-select: auto;
+                                            -webkit-touch-callout: default;
                                         }
                                         
                                         .instructions {
@@ -462,26 +464,7 @@
                                             padding: 15px;
                                             width: 100%;
                                             border-radius: 4px;
-                                        }
-                                        
-                                        .save-btn {
-                                            display: block;
-                                            width: 60%;
-                                            margin: 20px auto;
-                                            padding: 12px;
-                                            background-color: var(--primary-color);
-                                            color: white;
-                                            border: none;
-                                            border-radius: 50px;
                                             text-align: center;
-                                            cursor: pointer;
-                                            transition: background-color 0.3s;
-                                            font-size: 1rem;
-                                            text-decoration: none;
-                                        }
-                                        
-                                        .save-btn:hover {
-                                            background-color: #5A4ACD;
                                         }
                                     </style>
                                 </head>
@@ -490,35 +473,17 @@
                                         <h1>NJZ头像生成器-结果</h1>
                                         <img src="${dataUrl}" alt="生成的头像">
                                         <div class="instructions">
-                                            右键点击图片选择"图片另存为"，或点击下方按钮保存图片
+                                            长按图片或右键点击选择"图片另存为"即可保存
                                         </div>
-                                        <a class="save-btn" href="${dataUrl}" download="NJZ头像.png">保存头像</a>
                                     </div>
                                 </body>
                                 </html>
                             `;
                             
-                            // 先写入基本HTML结构
+                            // 写入HTML
                             newWindow.document.open();
                             newWindow.document.write(htmlContent);
                             newWindow.document.close();
-                            
-                            // 添加一个事件监听器
-                            newWindow.addEventListener('load', function() {
-                                try {
-                                    const saveBtn = newWindow.document.querySelector('.save-btn');
-                                    if (saveBtn) {
-                                        saveBtn.addEventListener('click', function(e) {
-                                            // 对于某些浏览器，download属性可能不起作用
-                                            if (!navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Firefox')) {
-                                                newWindow.alert('请右键点击图片，选择"图片另存为"保存图片');
-                                            }
-                                        });
-                                    }
-                                } catch (err) {
-                                    console.error('无法添加事件监听器:', err);
-                                }
-                            });
                         } else {
                             alert('无法打开新窗口。请检查您的浏览器是否阻止了弹出窗口。');
                         }
